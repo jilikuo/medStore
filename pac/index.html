@@ -196,19 +196,30 @@
           };
         } else if (especialidade === 'teleneuro') {
           const tcCranioFile = form.tcCranioFile.files[0];
-          const tcCranioRef = ref(storage, `${patientDir}/exames/${Date.now()}_${tcCranioFile.name}`);
-          await uploadBytes(tcCranioRef, tcCranioFile);
-          const tcCranioUrl = await getDownloadURL(tcCranioRef);
+          if (tcCranioFile) { // Verifica se o arquivo foi selecionado
+            const tcCranioRef = ref(storage, `${patientDir}/exames/${Date.now()}_${tcCranioFile.name}`);
+            await uploadBytes(tcCranioRef, tcCranioFile);
+            const tcCranioUrl = await getDownloadURL(tcCranioRef);
 
-          data.telegraveDados = {
-            sinaisFocais: form.sinaisFocais.value,
-            avcPrevio: form.avcPrevio.value,
-            dataInicioSintomas: form.dataInicioSintomas.value,
-            escalaNIH: form.escalaNIH.value,
-            tcCranio: tcCranioUrl,
-            diagnosticosDiferenciais: form.diagnosticosDiferenciais.value,
-            condutaRealizada: form.condutaRealizada.value,
-          };
+            data.telegraveDados = {
+              sinaisFocais: form.sinaisFocais.value,
+              avcPrevio: form.avcPrevio.value,
+              dataInicioSintomas: form.dataInicioSintomas.value,
+              escalaNIH: form.escalaNIH.value,
+              tcCranio: tcCranioUrl,
+              diagnosticosDiferenciais: form.diagnosticosDiferenciais.value,
+              condutaRealizada: form.condutaRealizada.value,
+            };
+          } else {
+            data.telegraveDados = {
+              sinaisFocais: form.sinaisFocais.value,
+              avcPrevio: form.avcPrevio.value,
+              dataInicioSintomas: form.dataInicioSintomas.value,
+              escalaNIH: form.escalaNIH.value,
+              diagnosticosDiferenciais: form.diagnosticosDiferenciais.value,
+              condutaRealizada: form.condutaRealizada.value,
+            };
+          }
         } else if (especialidade === 'telepsiquiatria') {
           data.telegraveDados = {
             historiaPsiquiatrica: form.historiaPsiquiatrica.value,

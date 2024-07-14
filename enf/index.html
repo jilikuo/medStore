@@ -197,7 +197,7 @@
                   <div class="col-md-6"><p><strong>AVC Prévio:</strong> ${data.telegraveDados.avcPrevio}</p></div>
                   <div class="col-md-6"><p><strong>Data de Início dos Sintomas:</strong> ${formatDateBR(data.telegraveDados.dataInicioSintomas)}</p></div>
                   <div class="col-md-6"><p><strong>Escala NIH:</strong> ${data.telegraveDados.escalaNIH}</p></div>
-                  <div class="col-md-6"><p><strong>TC de Crânio:</strong> <a href="${data.telegraveDados.tcCranio}" target="_blank">Ver Imagem</a></p></div>
+                  ${data.telegraveDados.tcCranio ? `<div class="col-md-6"><p><strong>TC de Crânio:</strong> <a href="${data.telegraveDados.tcCranio}" target="_blank">Ver Imagem</a></p></div>` : ''}
                   <div class="col-md-6"><p><strong>Diagnósticos Diferenciais:</strong> ${data.telegraveDados.diagnosticosDiferenciais}</p></div>
                   <div class="col-md-6"><p><strong>Conduta Realizada:</strong> ${data.telegraveDados.condutaRealizada}</p></div>
                 ` : ''}
