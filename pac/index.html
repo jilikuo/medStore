@@ -8,71 +8,6 @@
   <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
-  <style>
-    .container {
-      max-width: 800px;
-      margin-top: 20px;
-    }
-
-    .form-group {
-      margin-bottom: 15px;
-    }
-
-    .custom-file-input~.custom-file-label::after {
-      content: "Selecionar";
-    }
-
-    .section-title {
-      margin-top: 20px;
-      margin-bottom: 10px;
-      font-size: 1.25rem;
-      font-weight: bold;
-      color: #007bff;
-      display: flex;
-      align-items: center;
-    }
-
-    #bcfField {
-      display: none;
-    }
-
-    .checkbox-inline {
-      display: flex;
-      align-items: center;
-      margin-left: 20px;
-    }
-
-    #telegraveEspecialidadeField {
-      display: none;
-    }
-
-    #fileList, #tcCranioFileList {
-      margin-top: 10px;
-    }
-
-    .file-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 5px;
-    }
-
-    .btn {
-      margin-top: 10px;
-    }
-
-    .back-button {
-      margin-right: 10px;
-    }
-
-    .btn-container {
-      display: flex;
-      justify-content: flex-start;
-      gap: 10px;
-      margin-top: 20px;
-      margin-bottom: 20px;
-    }
-  </style>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
     import { getFirestore, collection, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
@@ -260,22 +195,17 @@
             condutaRealizada: form.condutaRealizada.value,
           };
         } else if (especialidade === 'teleneuro') {
-          if (form.tcCranioFile.files.length > 0) {
-            const tcCranioFile = form.tcCranioFile.files[0];
-            const tcCranioRef = ref(storage, `${patientDir}/exames/${Date.now()}_${tcCranioFile.name}`);
-            await uploadBytes(tcCranioRef, tcCranioFile);
-            const tcCranioUrl = await getDownloadURL(tcCranioRef);
-            data.telegraveDados.tcCranio = tcCranioUrl;
-          } else {
-            data.telegraveDados.tcCranio = null;
-          }
+          const tcCranioFile = form.tcCranioFile.files[0];
+          const tcCranioRef = ref(storage, `${patientDir}/exames/${Date.now()}_${tcCranioFile.name}`);
+          await uploadBytes(tcCranioRef, tcCranioFile);
+          const tcCranioUrl = await getDownloadURL(tcCranioRef);
 
           data.telegraveDados = {
-            ...data.telegraveDados,
             sinaisFocais: form.sinaisFocais.value,
             avcPrevio: form.avcPrevio.value,
             dataInicioSintomas: form.dataInicioSintomas.value,
             escalaNIH: form.escalaNIH.value,
+            tcCranio: tcCranioUrl,
             diagnosticosDiferenciais: form.diagnosticosDiferenciais.value,
             condutaRealizada: form.condutaRealizada.value,
           };
@@ -419,7 +349,7 @@
           { label: 'AVC Prévio', value: data.telegraveDados.avcPrevio },
           { label: 'Data de Início dos Sintomas', value: formatDateBR(data.telegraveDados.dataInicioSintomas) },
           { label: 'Escala NIH', value: data.telegraveDados.escalaNIH },
-          { label: 'TC de Crânio', value: data.telegraveDados.tcCranio ? data.telegraveDados.tcCranio : 'Não disponível' },
+          { label: 'TC de Crânio', value: data.telegraveDados.tcCranio ? `${data.telegraveDados.tcCranio}` : 'Não disponível' },
           { label: 'Diagnósticos Diferenciais', value: data.telegraveDados.diagnosticosDiferenciais },
           { label: 'Conduta Realizada', value: data.telegraveDados.condutaRealizada }
         );
@@ -549,8 +479,6 @@
       const telegraveCampos = document.getElementById('telegraveCampos');
       const fileInput = document.getElementById('anexos');
       const fileList = document.getElementById('fileList');
-      const tcCranioFileInput = document.getElementById('tcCranioFile');
-      const tcCranioFileList = document.getElementById('tcCranioFileList');
 
       gestanteCheckbox.addEventListener('change', () => {
         bcfField.style.display = gestanteCheckbox.checked ? 'block' : 'none';
@@ -683,7 +611,6 @@
               <input type="text" class="form-control" id="condutaRealizada" name="condutaRealizada" required>
             </div>
           `;
-          tcCranioFileInput.addEventListener('change', updateTcCranioFileList);
         } else if (especialidade === 'telepsiquiatria') {
           telegraveCampos.innerHTML = `
             <div class="section-title">TELEGRAVE - Psiquiatria</div>
@@ -713,6 +640,23 @@
             </div>
           `;
         }
+
+        document.getElementById('tcCranioFile').addEventListener('change', (e) => {
+          const tcCranioFileList = document.getElementById('tcCranioFileList');
+          tcCranioFileList.innerHTML = '';
+          const file = e.target.files[0];
+          if (file && (file.type.match('image.*') || file.type === 'application/pdf')) {
+            const listItem = document.createElement('div');
+            listItem.className = 'file-item';
+            listItem.innerHTML = `
+              <span>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
+              <button type="button" class="btn btn-danger btn-sm remove-btn" onclick="removeTCFile()">
+				<span class="material-icons">delete</span>
+			  </button>
+            `;
+            tcCranioFileList.appendChild(listItem);
+          }
+        });
       });
 
       function calculateGlasgow() {
@@ -736,8 +680,8 @@
           listItem.innerHTML = `
             <span>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
             <button type="button" class="btn btn-danger btn-sm remove-btn" onclick="removeFile('${file.name}')">
-              <span class="material-icons">delete</span>
-            </button>
+				<span class="material-icons">delete</span>
+			</button>
           `;
           fileList.appendChild(listItem);
         });
@@ -764,28 +708,6 @@
       });
 
       calculateGlasgow(); // Calculate Glasgow on page load
-
-      tcCranioFileInput.addEventListener('change', updateTcCranioFileList);
-
-      function updateTcCranioFileList(e) {
-        tcCranioFileList.innerHTML = '';
-        Array.from(e.target.files).forEach(file => {
-          if (!file.type.match('image.*') && file.type !== 'application/pdf') {
-            alert('Somente arquivos de imagem e PDFs são permitidos.');
-            removeFile(file.name);
-            return;
-          }
-          const listItem = document.createElement('div');
-          listItem.className = 'file-item';
-          listItem.innerHTML = `
-            <span>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
-            <button type="button" class="btn btn-danger btn-sm remove-btn" onclick="removeTcCranioFile('${file.name}')">
-              <span class="material-icons">delete</span>
-            </button>
-          `;
-          tcCranioFileList.appendChild(listItem);
-        });
-      }
     });
 
     function removeFile(fileName) {
@@ -800,18 +722,6 @@
       updateFileList();
     }
 
-    function removeTcCranioFile(fileName) {
-      const fileInput = document.getElementById('tcCranioFile');
-      const dataTransfer = new DataTransfer();
-      Array.from(fileInput.files).forEach(file => {
-        if (file.name !== fileName) {
-          dataTransfer.items.add(file);
-        }
-      });
-      fileInput.files = dataTransfer.files;
-      updateTcCranioFileList();
-    }
-
     function updateFileList() {
       const fileInput = document.getElementById('anexos');
       const fileList = document.getElementById('fileList');
@@ -822,11 +732,18 @@
         listItem.innerHTML = `
           <span>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
           <button type="button" class="btn btn-danger btn-sm remove-btn" onclick="removeFile('${file.name}')">
-            <span class="material-icons">delete</span>
-          </button>
+			<span class="material-icons">delete</span>
+		  </button>
         `;
         fileList.appendChild(listItem);
       });
+    }
+
+    function removeTCFile() {
+      const tcCranioFile = document.getElementById('tcCranioFile');
+      const tcCranioFileList = document.getElementById('tcCranioFileList');
+      tcCranioFile.value = ''; // Clear the file input
+      tcCranioFileList.innerHTML = ''; // Clear the file list display
     }
 
     document.getElementById('anexos').addEventListener('change', (e) => {
@@ -841,6 +758,72 @@
       updateFileList();
     });
   </script>
+  <style>
+    .container {
+      max-width: 800px;
+      margin-top: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .custom-file-input~.custom-file-label::after {
+      content: "Selecionar";
+    }
+
+    .section-title {
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #007bff;
+      display: flex;
+      align-items: center;
+    }
+
+    #bcfField {
+      display: none;
+    }
+
+    .checkbox-inline {
+      display: flex;
+      align-items: center;
+      margin-left: 20px;
+    }
+
+    #telegraveEspecialidadeField {
+      display: none;
+    }
+
+    #fileList,
+    #tcCranioFileList {
+      margin-top: 10px;
+    }
+
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .btn {
+      margin-top: 10px;
+    }
+
+    .back-button {
+      margin-right: 10px;
+    }
+
+    .btn-container {
+      display: flex;
+      justify-content: flex-start;
+      gap: 10px;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+  </style>
 </head>
 
 <body>
@@ -939,7 +922,8 @@
       <div class="form-row">
         <div class="form-group col-md-2">
           <label for="fc">FC (bpm):</label>
-          <input type="number" class="form-control vital-sign" id="fc" name="fc" required placeholder="30-200" min="30" max="200">
+          <input type="number" class="form-control vital-sign" id="fc" name="fc" required placeholder="30-200" min="30"
+            max="200">
         </div>
         <div class="form-group col-md-2">
           <label for="pa">PA (mmHg):</label>
@@ -947,15 +931,18 @@
         </div>
         <div class="form-group col-md-2">
           <label for="fr">FR (rpm):</label>
-          <input type="number" class="form-control vital-sign" id="fr" name="fr" required placeholder="12-25" min="12" max="25">
+          <input type="number" class="form-control vital-sign" id="fr" name="fr" required placeholder="12-25" min="12"
+            max="25">
         </div>
         <div class="form-group col-md-2">
           <label for="temperatura">T (°C):</label>
-          <input type="number" class="form-control vital-sign" id="temperatura" name="temperatura" step="0.1" required placeholder="30-45" min="30" max="45">
+          <input type="number" class="form-control vital-sign" id="temperatura" name="temperatura" step="0.1" required
+            placeholder="30-45" min="30" max="45">
         </div>
         <div class="form-group col-md-2">
           <label for="saturacao">SAT (%):</label>
-          <input type="number" class="form-control vital-sign" id="saturacao" name="saturacao" required placeholder="50-100" min="50" max="100">
+          <input type="number" class="form-control vital-sign" id="saturacao" name="saturacao" required
+            placeholder="50-100" min="50" max="100">
         </div>
         <div class="form-group col-md-2">
           <label for="glasgow">GLASGOW:</label>
@@ -969,7 +956,8 @@
         </div>
         <div class="form-group col-md-2" id="bcfField">
           <label for="bcf">BCF:</label>
-          <input type="number" class="form-control vital-sign" id="bcf" name="bcf" placeholder="100-180" min="100" max="180">
+          <input type="number" class="form-control vital-sign" id="bcf" name="bcf" placeholder="100-180" min="100"
+            max="180">
         </div>
       </div>
 
@@ -1051,7 +1039,8 @@
       <div class="section-title">Anexar Exames e Documentos</div>
       <div class="form-group">
         <div class="custom-file">
-          <input type="file" class="custom-file-input" id="anexos" name="anexos" multiple accept="image/*,application/pdf">
+          <input type="file" class="custom-file-input" id="anexos" name="anexos" multiple
+            accept="image/*,application/pdf">
           <label class="custom-file-label" for="anexos">Escolher arquivos</label>
         </div>
         <div id="fileList"></div>
@@ -1077,18 +1066,6 @@
       updateFileList();
     }
 
-    function removeTcCranioFile(fileName) {
-      const fileInput = document.getElementById('tcCranioFile');
-      const dataTransfer = new DataTransfer();
-      Array.from(fileInput.files).forEach(file => {
-        if (file.name !== fileName) {
-          dataTransfer.items.add(file);
-        }
-      });
-      fileInput.files = dataTransfer.files;
-      updateTcCranioFileList();
-    }
-
     function updateFileList() {
       const fileInput = document.getElementById('anexos');
       const fileList = document.getElementById('fileList');
@@ -1099,28 +1076,18 @@
         listItem.innerHTML = `
           <span>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
           <button type="button" class="btn btn-danger btn-sm remove-btn" onclick="removeFile('${file.name}')">
-            <span class="material-icons">delete</span>
-          </button>
+			<span class="material-icons">delete</span>
+		  </button>
         `;
         fileList.appendChild(listItem);
       });
     }
 
-    function updateTcCranioFileList() {
-      const fileInput = document.getElementById('tcCranioFile');
-      const fileList = document.getElementById('tcCranioFileList');
-      fileList.innerHTML = '';
-      Array.from(fileInput.files).forEach(file => {
-        const listItem = document.createElement('div');
-        listItem.className = 'file-item';
-        listItem.innerHTML = `
-          <span>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
-          <button type="button" class="btn btn-danger btn-sm remove-btn" onclick="removeTcCranioFile('${file.name}')">
-            <span class="material-icons">delete</span>
-          </button>
-        `;
-        fileList.appendChild(listItem);
-      });
+    function removeTCFile() {
+      const tcCranioFile = document.getElementById('tcCranioFile');
+      const tcCranioFileList = document.getElementById('tcCranioFileList');
+      tcCranioFile.value = ''; // Clear the file input
+      tcCranioFileList.innerHTML = ''; // Clear the file list display
     }
 
     document.getElementById('anexos').addEventListener('change', (e) => {
@@ -1133,18 +1100,6 @@
       validFiles.forEach(file => dataTransfer.items.add(file));
       e.target.files = dataTransfer.files;
       updateFileList();
-    });
-
-    document.getElementById('tcCranioFile').addEventListener('change', (e) => {
-      const files = Array.from(e.target.files);
-      const validFiles = files.filter(file => file.type.match('image.*') || file.type === 'application/pdf');
-      if (files.length !== validFiles.length) {
-        alert('Somente arquivos de imagem e PDFs são permitidos.');
-      }
-      const dataTransfer = new DataTransfer();
-      validFiles.forEach(file => dataTransfer.items.add(file));
-      e.target.files = dataTransfer.files;
-      updateTcCranioFileList();
     });
   </script>
 </body>
