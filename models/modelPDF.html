@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exemplo de PDF</title>
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="pdfPreview"></iframe>
+
+  <script>
+    window.onload = function() {
+      const logoUrl = 'logo.png'; // Caminho local para a imagem
+
+      const loadLogo = (url, callback) => {
+        const img = new Image();
+        img.src = url;
+        img.onload = () => callback(img);
+      };
+
+      loadLogo(logoUrl, (img) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        const logoBase64 = canvas.toDataURL('image/png');
+        gerarPDF(logoBase64, img.width, img.height);
+      });
+
+      function formatDateBR(dateString) {
+        const [year, month, day] = dateString.split('-');
+        return `${day}/${month}/${year}`;
+      }
+
+      function gerarPDF(logoBase64, imgWidth, imgHeight) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        // Dados fictícios
+        const data = {
+          nome: "João da Silva",
+          endereco: "Rua Exemplo, 123",
+          dataNascimento: "1980-01-01",
+          idade: 40,
+          sexo: "Masculino",
+          nomeMae: "Maria da Silva",
+          numeroConvenio: "123456789",
+          telefone: "(16) 99999-9999",
+          cid: "A00",
+          quadroClinico: "Paciente em bom estado geral.",
+          motivoTransferencia: "Transferência para avaliação especializada.",
+          assinaturaMedico: "Dr. Carlos",
+          crmDestino: "4141",
+          data: "2024-07-05",
+          hora: "14:00",
+          medicoRegulador: "Dr. Carlos",
+          horaLiberacaoVaga: "13:00",
+          destino: "Hospital X",
+          medicoDestino: "Dr. Pedro",
+          horaChegadaAmbulancia: "14:30",
+          sinaisVitais: {
+            respostaOcular: 4,
+            respostaMotora: 5,
+            respostaVerbal: 6,
+            fc: 80,
+            pa: "120/80",
+            fr: 16,
+            temperatura: 36.5,
+            saturacao: 98,
+            peso: 70,
+            glasgow: 15,
+            bcf: null
+          },
+          gestante: false,
+          telegrave: true,
+          telegraveEspecialidade: "Cardio",
+          telegraveDados: {
+            tipoDor: "Dor no peito",
+            cateterismoPrevio: "Não",
+            dataLaudo: "2023-12-01",
+            ecgInicial: "Normal",
+            ecgSequenciais: "Normais",
+            troponinaInicial: "Negativa",
+            troposSequenciais: "Negativas",
+            diagnosticosDiferenciais: "Angina, Infarto",
+            condutaRealizada: "Medicação"
+          }
+        };
+
+        function addHeader(doc, logoBase64, imgWidth, imgHeight) {
+          // Adicionar logo
+          const logoWidth = 100; // Largura do logo
+          const logoHeight = (imgHeight * logoWidth) / imgWidth; // Manter a proporção
+          doc.addImage(logoBase64, 'PNG', 10, 10, logoWidth, logoHeight);
+
+          // Dados do cabeçalho à direita do logo
+          const headerX = 10 + logoWidth + 10; // Posição X após o logo mais um espaço
+          doc.setFontSize(10);
+          doc.setTextColor(105);
+          doc.text('UNIDADE – São Francisco Pitangueiras', headerX, 15);
+          doc.text('ENDEREÇO: Avenida Acre 139 – JD Brasília', headerX, 20);
+          doc.text('TELEFONE: 16 3952-9060', headerX, 25);
+          doc.setTextColor(0);
+
+          // Centralizar título
+          const title = 'SOLICITAÇÃO DE ASSISTÊNCIA REFERENCIADA';
+          const pageWidth = doc.internal.pageSize.getWidth();
+          const titleWidth = doc.getTextWidth(title);
+          const titleX = (pageWidth - titleWidth) / 3;
+          doc.setFontSize(14);
+          doc.text(title, titleX, 50);
+        }
+
+        function addFooter(doc, data) {
+          // Assinatura e carimbo do médico
+          let yPosition = doc.internal.pageSize.getHeight() - 20; // Ajuste para mais baixo
+          doc.setFontSize(12);
+          doc.setLineWidth(0.1);
+          doc.line(115, yPosition, 185, yPosition); // Ajuste para a esquerda
+          doc.text('Assinatura e carimbo', 130, yPosition + 5);
+          doc.text(`${data.assinaturaMedico} ${data.crmDestino}`, 130, yPosition + 10);
+          doc.setFontSize(10);
+          doc.setTextColor(105);
+          doc.text(`${formatDateBR(data.data)} às ${data.hora}`, 174, yPosition + 19);
+        }
+
+        // Primeira página
+        addHeader(doc, logoBase64, imgWidth, imgHeight);
+
+        // Informações do Paciente
+        doc.setFontSize(12);
+        doc.text('IDENTIFICAÇÃO DO PACIENTE', 10, 60);
+        doc.setLineWidth(0.5);
+        doc.line(10, 62, 200, 62);
+        const patientInfo = [
+          { label: 'Nome', value: data.nome },
+          { label: 'Endereço', value: data.endereco },
+          { label: 'D.N', value: `${formatDateBR(data.dataNascimento)}    Idade: ${data.idade}    Sexo: ${data.sexo}` },
+          { label: 'Nome da mãe', value: data.nomeMae },
+          { label: 'Número do convênio', value: data.numeroConvenio, align: 'left' },
+          { label: 'CID', value: data.cid }
+        ];
+
+        let yPosition = 70;
+        patientInfo.forEach(info => {
+          if (info.label === 'Número do convênio') {
+            const text1 = `${info.label}: ${info.value}`;
+            const text2 = `Telefone: ${data.telefone}`;
+            const textWidth1 = doc.getTextWidth(text1);
+            const textWidth2 = doc.getTextWidth(text2);
+            const spacing = (doc.internal.pageSize.getWidth() - 20 - textWidth1 - textWidth2) / 2; // 20 is for margins
+            doc.text(text1, 10, yPosition);
+            doc.text(text2, 10 + textWidth1 + spacing, yPosition);
+          } else if (!info.align) {
+            doc.text(`${info.label}: ${info.value}`, 10, yPosition);
+          } else if (info.align === 'left') {
+            doc.text(`${info.label}: ${info.value}`, 10, yPosition);
+          } else if (info.align === 'right') {
+            const textWidth = doc.getTextWidth(`${info.label}: ${info.value}`);
+            doc.text(`${info.label}: ${info.value}`, doc.internal.pageSize.getWidth() - 10 - textWidth, yPosition);
+          }
+          yPosition += 7;
+        });
+
+        // Sinais Vitais
+        doc.setFontSize(12);
+        doc.text('SINAIS VITAIS', 10, yPosition + 10);
+        doc.line(10, yPosition + 12, 200, yPosition + 12);
+        yPosition += 20;
+
+        // Sinais Vitais: Linha única para itens específicos
+        doc.text(`Resposta Ocular: ${data.sinaisVitais.respostaOcular}`, 10, yPosition);
+        doc.text(`Resposta Motora: ${data.sinaisVitais.respostaMotora}`, 55, yPosition);
+        doc.text(`Resposta Verbal: ${data.sinaisVitais.respostaVerbal}`, 100, yPosition);
+        doc.text(`GLASGOW: ${data.sinaisVitais.glasgow}`, 145, yPosition);
+        yPosition += 7;
+
+        // Restante dos Sinais Vitais
+        doc.text(`FC (bpm): ${data.sinaisVitais.fc}`, 10, yPosition);
+        doc.text(`PA (mmHg): ${data.sinaisVitais.pa}`, 55, yPosition);
+        doc.text(`FR (rpm): ${data.sinaisVitais.fr}`, 100, yPosition);
+        doc.text(`Temperatura (°C): ${data.sinaisVitais.temperatura}`, 145, yPosition);
+        yPosition += 7;
+        doc.text(`Peso (kg): ${data.sinaisVitais.peso}`, 10, yPosition);
+        doc.text(`Saturação (%): ${data.sinaisVitais.saturacao}`, 55, yPosition);
+        yPosition += 7;
+
+        // Quadro Clínico
+        yPosition = yPosition + 10;
+        doc.setFontSize(12);
+        doc.text('QUADRO CLÍNICO', 10, yPosition);
+        doc.line(10, yPosition + 2, 200, yPosition + 2);
+        doc.text(data.quadroClinico, 10, yPosition + 10);
+
+        // Motivo da Transferência
+        yPosition += 20;
+        doc.setFontSize(12);
+        doc.text('MOTIVO DA TRANSFERÊNCIA', 10, yPosition);
+        doc.line(10, yPosition + 2, 200, yPosition + 2);
+        doc.text(data.motivoTransferencia, 10, yPosition + 10);
+
+        // Dados da Regulação
+        yPosition += 20;
+        doc.setFontSize(12);
+        doc.text('DADOS DA REGULAÇÃO', 10, yPosition);
+        doc.line(10, yPosition + 2, 200, yPosition + 2);
+        doc.text(`Médico Regulador: ${data.medicoRegulador}`, 10, yPosition + 10);
+        doc.text(`Hora da Liberação da Vaga: ${data.horaLiberacaoVaga}`, 10, yPosition + 15);
+        doc.text(`Destino: ${data.destino}`, 10, yPosition + 20);
+        doc.text(`Médico do Destino: ${data.medicoDestino}    CRM: ${data.crmDestino}`, 10, yPosition + 25);
+        doc.text(`Hora da Chegada da Ambulância: ${data.horaChegadaAmbulancia}`, 10, yPosition + 30);
+
+        // Assinatura e carimbo do médico
+        yPosition = doc.internal.pageSize.getHeight() - 20; // Ajuste para mais baixo
+        doc.setFontSize(12);
+        doc.setLineWidth(0.1);
+        doc.line(115, yPosition, 185, yPosition); // Ajuste para a esquerda
+        doc.text('Assinatura e carimbo', 130, yPosition + 5);
+        doc.text(`${data.assinaturaMedico} ${data.crmDestino}`, 130, yPosition + 10);
+        doc.setFontSize(10);
+        doc.setTextColor(105);
+        doc.text(`${formatDateBR(data.data)} às ${data.hora}`, 174, yPosition + 19);
+
+        // Segunda página com dados do Telegrave
+        if (data.telegrave) {
+          addTelegravePage(doc, data, logoBase64, imgWidth, imgHeight);
+        }
+
+        // Mostrar PDF no iframe
+        const pdfDataUri = doc.output('datauristring');
+        document.getElementById('pdfPreview').src = pdfDataUri;
+      }
+
+      function addTelegravePage(doc, data, logoBase64, imgWidth, imgHeight) {
+        doc.addPage();
+        addHeader(doc, logoBase64, imgWidth, imgHeight);
+
+        let yPosition = 70;
+        doc.setFontSize(12);
+        doc.text('DADOS DO TELEGRAVE', 10, yPosition);
+        doc.setLineWidth(0.5);
+        doc.line(10, yPosition + 2, 200, yPosition + 2);
+        yPosition += 10;
+
+        const telegraveInfo = [
+          { label: 'Tipo de Dor', value: data.telegraveDados.tipoDor },
+          { label: 'Cateterismo Prévio', value: data.telegraveDados.cateterismoPrevio },
+          { label: 'Data e Laudo', value: formatDateBR(data.telegraveDados.dataLaudo) },
+          { label: 'ECG Inicial', value: data.telegraveDados.ecgInicial },
+          { label: 'ECG Sequenciais', value: data.telegraveDados.ecgSequenciais },
+          { label: 'Troponina Inicial', value: data.telegraveDados.troponinaInicial },
+          { label: 'Tropos Sequenciais', value: data.telegraveDados.troposSequenciais },
+          { label: 'Diagnósticos Diferenciais', value: data.telegraveDados.diagnosticosDiferenciais },
+          { label: 'Conduta Realizada', value: data.telegraveDados.condutaRealizada }
+        ];
+
+        telegraveInfo.forEach(info => {
+          doc.text(`${info.label}: ${info.value}`, 10, yPosition);
+          yPosition += 7;
+        });
+
+        addFooter(doc, data);
+      }
+
+      function addHeader(doc, logoBase64, imgWidth, imgHeight) {
+        // Adicionar logo
+        const logoWidth = 100; // Largura do logo
+        const logoHeight = (imgHeight * logoWidth) / imgWidth; // Manter a proporção
+        doc.addImage(logoBase64, 'PNG', 10, 10, logoWidth, logoHeight);
+
+        // Dados do cabeçalho à direita do logo
+        const headerX = 10 + logoWidth + 10; // Posição X após o logo mais um espaço
+        doc.setFontSize(10);
+        doc.text('UNIDADE – São Francisco Pitangueiras', headerX, 15);
+        doc.text('ENDEREÇO: Avenida Acre 139 – JD Brasília', headerX, 20);
+        doc.text('TELEFONE: 16 3952-9060', headerX, 25);
+        doc.setTextColor(0);
+
+        // Centralizar título
+        const title = 'SOLICITAÇÃO DE ASSISTÊNCIA REFERENCIADA';
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const titleWidth = doc.getTextWidth(title);
+        const titleX = (pageWidth - titleWidth) / 3;
+        doc.setFontSize(14);
+        doc.text(title, titleX, 50);
+      }
+
+      function addFooter(doc, data) {
+        // Assinatura e carimbo do médico
+        let yPosition = doc.internal.pageSize.getHeight() - 20; // Ajuste para mais baixo
+        doc.setFontSize(12);
+        doc.setLineWidth(0.1);
+        doc.line(115, yPosition, 185, yPosition); // Ajuste para a esquerda
+        doc.text('Assinatura e carimbo', 130, yPosition + 5);
+        doc.text(`${data.assinaturaMedico} ${data.crmDestino}`, 130, yPosition + 10);
+        doc.setFontSize(10);
+        doc.setTextColor(105);
+        doc.text(`${formatDateBR(data.data)} às ${data.hora}`, 174, yPosition + 19);
+      }
+    }
+  </script>
+</body>
+</html>
+

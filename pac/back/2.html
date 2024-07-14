@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formulário Médico</title>
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA6ABD6HXyiwbXipENcE7UCeBkTpR9Nk8U",
+      authDomain: "cordestore.firebaseapp.com",
+      projectId: "cordestore",
+      storageBucket: "cordestore.appspot.com",
+      messagingSenderId: "752359738934",
+      appId: "1:752359738934:web:3a6f0dd52cb0fa91759297",
+      measurementId: "G-JP22TE5B2B"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    function calculateAge(dateString) {
+      const today = new Date();
+      const birthDate = new Date(dateString);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDifference = today.getMonth() - birthDate.getMonth();
+      if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    }
+
+    function formatDateBR(dateString) {
+      const [year, month, day] = dateString.split('-');
+      return `${day}/${month}/${year}`;
+    }
+
+    function checkSinaisVitais() {
+      const requiredFields = [
+        'respostaOcular', 'respostaMotora', 'respostaVerbal',
+        'fc', 'pa', 'fr', 'temperatura',
+        'saturacao', 'glasgow'
+      ];
+      if (document.getElementById('gestante').checked) {
+        requiredFields.push('bcf');
+      }
+      return requiredFields.every(field => document.getElementById(field).value.trim() !== '');
+    }
+
+    function validateAge(age) {
+      if (age < 0 || age > 120) {
+        alert('Idade inválida. Por favor, verifique a data de nascimento.');
+        return false;
+      }
+      return true;
+    }
+
+    function validatePA(pa) {
+      const paPattern = /^\d{1,3}\/\d{1,2}$/;
+      if (!paPattern.test(pa)) {
+        alert('PA inválida. Por favor, insira no formato correto XXX/YY.');
+        return false;
+      }
+      return true;
+    }
+
+    function validateTemperatura(temp) {
+      if (temp < 30 || temp > 45) {
+        alert('Temperatura inválida. Por favor, insira um valor entre 30°C e 45°C.');
+        return false;
+      }
+      return true;
+    }
+
+    function validateSaturacao(saturacao) {
+      if (saturacao < 50 || saturacao > 100) {
+        alert('Saturação inválida. Por favor, insira um valor entre 50% e 100%.');
+        return false;
+      }
+      return true;
+    }
+
+    function validateFC(fc) {
+      if (fc < 30 || fc > 200) {
+        alert('Frequência Cardíaca inválida. Por favor, insira um valor entre 30 bpm e 200 bpm.');
+        return false;
+      }
+      return true;
+    }
+
+    function validateBCF(bcf) {
+      if (bcf < 100 || bcf > 180) {
+        alert('BCF inválido. Por favor, insira um valor entre 100 e 180.');
+        return false;
+      }
+      return true;
+    }
+
+    async function saveFormData(e) {
+      e.preventDefault();
+
+      const form = document.getElementById('medicalForm');
+      const patientDir = `${form.nome.value}_${form.numeroConvenio.value}`;
+      const now = new Date();
+      const dataRegistro = now.toLocaleString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      const idade = calculateAge(form.dataNascimento.value);
+      if (!validateAge(idade)) {
+        return;
+      }
+
+      if (!validatePA(form.pa.value) || !validateTemperatura(parseFloat(form.temperatura.value)) ||
+        !validateSaturacao(parseInt(form.saturacao.value)) || !validateFC(parseInt(form.fc.value))) {
+        return;
+      }
+
+      if (document.getElementById('gestante').checked) {
+        const bcfValue = parseInt(form.bcf.value);
+        if (!validateBCF(bcfValue)) {
+          alert('BCF é obrigatório para gestantes e deve estar entre 100 e 180.');
+          return;
+        }
+      }
+
+      const data = {
+        nome: form.nome.value,
+        endereco: form.endereco.value,
+        dataNascimento: form.dataNascimento.value,
+        idade: idade,
+        sexo: form.sexo.value,
+        nomeMae: form.nomeMae.value,
+        numeroConvenio: form.numeroConvenio.value,
+        telefone: form.telefone.value,
+        cid: form.cid.value,
+        quadroClinico: form.quadroClinico.value,
+        motivoTransferencia: `${form.motivoTransferencia.value} (CID: ${form.cid.value})`,
+        medicoRegulador: form.medicoRegulador.value,
+        medicoReguladorCRM: form.medicoReguladorCRM.value,
+        data: form.data.value,
+        hora: form.hora.value,
+        horaLiberacaoVaga: form.horaLiberacaoVaga.value,
+        destino: form.destino.value,
+        medicoDestino: form.medicoDestino.value,
+        crmDestino: form.crmDestino.value,
+        horaChegadaAmbulancia: form.horaChegadaAmbulancia.value,
+        sinaisVitais: {
+          respostaOcular: form.respostaOcular.value,
+          respostaMotora: form.respostaMotora.value,
+          respostaVerbal: form.respostaVerbal.value,
+          fc: form.fc.value,
+          pa: form.pa.value,
+          fr: form.fr.value,
+          temperatura: form.temperatura.value,
+          saturacao: form.saturacao.value,
+          glasgow: form.glasgow.value,
+          bcf: form.gestante.checked ? form.bcf.value : null,
+        },
+        gestante: form.gestante.checked,
+        telegrave: form.telegrave.checked,
+        telegraveEspecialidade: form.telegraveEspecialidade ? form.telegraveEspecialidade.value : null,
+        telegraveDados: {},
+        anexos: [],
+        dataRegistro: Timestamp.fromDate(now)
+      };
+
+      if (form.telegraveEspecialidade && form.telegraveEspecialidade.value) {
+        const especialidade = form.telegraveEspecialidade.value;
+        if (especialidade === 'telecardio') {
+          data.telegraveDados = {
+            tipoDor: form.tipoDor.value,
+            cateterismoPrevio: form.cateterismoPrevio.value,
+            dataLaudo: form.dataLaudo.value,
+            ecgInicial: form.ecgInicial.value,
+            ecgSequenciais: form.ecgSequenciais.value,
+            troponinaInicial: form.troponinaInicial.value,
+            troposSequenciais: form.troposSequenciais.value,
+            diagnosticosDiferenciais: form.diagnosticosDiferenciais.value,
+            condutaRealizada: form.condutaRealizada.value,
+          };
+        }
+      }
+
+      const files = form.anexos.files;
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.match('image.*') && file.type !== 'application/pdf') {
+          alert('Somente arquivos de imagem e PDFs são permitidos.');
+          return;
+        }
+        const fileRef = ref(storage, `${patientDir}/exames/${Date.now()}_${file.name}`);
+        await uploadBytes(fileRef, file);
+        const fileUrl = await getDownloadURL(fileRef);
+        data.anexos.push(fileUrl);
+      }
+
+      try {
+        const { logoBase64, imgWidth, imgHeight } = await loadLogo('logo.png');
+        const pdfBlob = await generatePDF(data, logoBase64, imgWidth, imgHeight);
+        const pdfRef = ref(storage, `${patientDir}/pdfs/${Date.now()}_${data.nome}.pdf`);
+        await uploadBytes(pdfRef, pdfBlob);
+        const pdfUrl = await getDownloadURL(pdfRef);
+        data.pdfUrl = pdfUrl;
+
+        await addDoc(collection(db, 'medicalForms'), data);
+        alert('Dados enviados com sucesso!');
+      } catch (error) {
+        console.error('Erro ao salvar os dados: ', error);
+      }
+    }
+
+    async function loadLogo(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = url;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          const logoBase64 = canvas.toDataURL('image/png');
+          resolve({ logoBase64, imgWidth: img.width, imgHeight: img.height });
+        };
+        img.onerror = (err) => reject(err);
+      });
+    }
+
+    function addHeader(doc, logoBase64, imgWidth, imgHeight) {
+      const logoWidth = 100;
+      const logoHeight = (imgHeight * logoWidth) / imgWidth;
+      doc.addImage(logoBase64, 'PNG', 10, 20, logoWidth, logoHeight);
+
+      const headerX = 10 + logoWidth + 10;
+      doc.setFontSize(10);
+      doc.setTextColor(105);
+      doc.text('UNIDADE – São Francisco Pitangueiras', headerX, 24);
+      doc.text('ENDEREÇO: Avenida Acre 139 – JD Brasília', headerX, 28);
+      doc.text('TELEFONE: 16 3952-9060', headerX, 32);
+      doc.setTextColor(0);
+
+      const title = 'SOLICITAÇÃO DE ASSISTÊNCIA REFERENCIADA';
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const titleWidth = doc.getTextWidth(title);
+      const titleX = (pageWidth - titleWidth) / 3;
+      doc.setFontSize(14);
+      doc.text(title, titleX, 50);
+    }
+
+    function addFooter(doc, data, pageNum, totalPages) {
+      let yPosition = doc.internal.pageSize.getHeight() - 20;
+      doc.setFontSize(9);
+      doc.setLineWidth(0.1);
+      doc.line(115, yPosition, 185, yPosition);
+      doc.text('Assinatura e carimbo', 130, yPosition + 5);
+      doc.text(`${data.medicoRegulador} ${data.crmDestino}`, 130, yPosition + 10);
+      doc.setFontSize(8);
+      doc.setTextColor(105);
+      doc.text(`${formatDateBR(data.data)} às ${data.hora}`, 10, 10);
+      doc.text(`Pág. ${pageNum}/${totalPages}`, 200, yPosition + 18, { align: 'right' });
+    }
+
+    function addTelegravePage(doc, data, logoBase64, imgWidth, imgHeight) {
+      doc.addPage();
+      addHeader(doc, logoBase64, imgWidth, imgHeight);
+
+      doc.setFontSize(10);
+      doc.text('IDENTIFICAÇÃO DO PACIENTE', 10, 60);
+      doc.setLineWidth(0.5);
+      doc.line(10, 62, 200, 62);
+
+      const patientInfo = [
+        { label: 'Nome', value: data.nome },
+        { label: 'Endereço', value: data.endereco },
+        { label: 'D.N', value: `${formatDateBR(data.dataNascimento)}    Idade: ${data.idade}    Sexo: ${data.sexo}` },
+        { label: 'Nome da mãe', value: data.nomeMae },
+        { label: 'Número do convênio', value: data.numeroConvenio, align: 'left' },
+        { label: 'Telefone', value: data.telefone }
+      ];
+
+      let yPosition = 70;
+      patientInfo.forEach(info => {
+        doc.text(`${info.label}: ${info.value}`, 10, yPosition);
+        yPosition += 6;
+      });
+
+      doc.setFontSize(10);
+      doc.text(`DADOS DO TELEGRAVE - ${data.telegraveEspecialidade.toUpperCase()}`, 10, yPosition + 10);
+      doc.line(10, yPosition + 12, 200, yPosition + 12);
+      yPosition += 18;
+
+      const telegraveInfo = [
+        { label: 'Tipo de Dor', value: data.telegraveDados.tipoDor },
+        { label: 'Cateterismo Prévio', value: data.telegraveDados.cateterismoPrevio },
+        { label: 'Data e Laudo', value: data.telegraveDados.dataLaudo },
+        { label: 'ECG Inicial', value: data.telegraveDados.ecgInicial },
+        { label: 'ECG Sequenciais', value: data.telegraveDados.ecgSequenciais },
+        { label: 'Troponina Inicial', value: data.telegraveDados.troponinaInicial },
+        { label: 'Tropos Sequenciais', value: data.telegraveDados.troposSequenciais },
+        { label: 'Diagnósticos Diferenciais', value: data.telegraveDados.diagnosticosDiferenciais },
+        { label: 'Conduta Realizada', value: data.telegraveDados.condutaRealizada }
+      ];
+
+      telegraveInfo.forEach(info => {
+        doc.text(`${info.label}: ${info.value}`, 10, yPosition);
+        yPosition += 6;
+      });
+
+      addFooter(doc, data, 2, 2);
+    }
+
+    async function generatePDF(data, logoBase64, imgWidth, imgHeight) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      addHeader(doc, logoBase64, imgWidth, imgHeight);
+
+      doc.setFontSize(10);
+      doc.text('IDENTIFICAÇÃO DO PACIENTE', 10, 60);
+      doc.setLineWidth(0.5);
+      doc.line(10, 62, 200, 62);
+      const patientInfo = [
+        { label: 'Nome', value: data.nome },
+        { label: 'Endereço', value: data.endereco },
+        { label: 'D.N', value: `${formatDateBR(data.dataNascimento)}    Idade: ${data.idade}    Sexo: ${data.sexo}` },
+        { label: 'Nome da mãe', value: data.nomeMae },
+        { label: 'Número do convênio', value: data.numeroConvenio, align: 'left' },
+        { label: 'Telefone', value: data.telefone }
+      ];
+
+      let yPosition = 70;
+      patientInfo.forEach(info => {
+        doc.text(`${info.label}: ${info.value}`, 10, yPosition);
+        yPosition += 6;
+      });
+
+      doc.setFontSize(10);
+      doc.text('SINAIS VITAIS', 10, yPosition + 8);
+      doc.line(10, yPosition + 10, 200, yPosition + 10);
+      yPosition += 16;
+
+      doc.setFontSize(9);
+      doc.text(`PA (mmHg): ${data.sinaisVitais.pa}`, 10, yPosition);
+      doc.text(`FC (bpm): ${data.sinaisVitais.fc}`, 55, yPosition);
+      doc.text(`Saturação (%): ${data.sinaisVitais.saturacao}`, 100, yPosition);
+      doc.text(`FR (rpm): ${data.sinaisVitais.fr}`, 145, yPosition);
+      yPosition += 4;
+
+      doc.text(`Temperatura (°C): ${data.sinaisVitais.temperatura}`, 10, yPosition);
+      yPosition += 4;
+
+      doc.text(`GLASGOW: ${data.sinaisVitais.glasgow}`, 10, yPosition);
+      doc.text(`Resposta Ocular: ${data.sinaisVitais.respostaOcular}`, 55, yPosition);
+      doc.text(`Resposta Motora: ${data.sinaisVitais.respostaMotora}`, 100, yPosition);
+      doc.text(`Resposta Verbal: ${data.sinaisVitais.respostaVerbal}`, 145, yPosition);
+      yPosition += 4;
+
+      if (data.sexo === 'Feminino' && data.gestante) {
+        doc.text(`BCF: ${data.sinaisVitais.bcf}`, 10, yPosition);
+        yPosition += 4;
+      }
+
+      yPosition = yPosition + 8;
+      doc.setFontSize(10);
+      let quadroClinicoTitle = 'QUADRO CLÍNICO';
+      if (data.sexo === 'Feminino' && data.gestante) {
+        quadroClinicoTitle += ' - GESTANTE';
+      }
+      doc.text(quadroClinicoTitle, 10, yPosition);
+      doc.line(10, yPosition + 2, 200, yPosition + 2);
+      yPosition += 8;
+
+      const textLines = doc.splitTextToSize(data.quadroClinico, 180);
+      textLines.forEach(line => {
+        doc.text(line, 10, yPosition);
+        yPosition += 6;
+      });
+
+      yPosition += 8;
+      doc.setFontSize(10);
+      doc.text('MOTIVO DA TRANSFERÊNCIA', 10, yPosition);
+      doc.line(10, yPosition + 2, 200, yPosition + 2);
+      doc.text(`${data.motivoTransferencia}`, 10, yPosition + 8);
+
+      yPosition += 16;
+      doc.setFontSize(10);
+      doc.text('DADOS DA REGULAÇÃO', 10, yPosition);
+      doc.line(10, yPosition + 2, 200, yPosition + 2);
+      doc.text(`Médico Regulador: ${data.medicoRegulador}`, 10, yPosition + 8);
+      doc.text(`Hora da Liberação da Vaga: ${data.horaLiberacaoVaga}`, 10, yPosition + 12);
+      doc.text(`Destino: ${data.destino}`, 10, yPosition + 16);
+      doc.text(`Médico do Destino: ${data.medicoDestino}    CRM: ${data.crmDestino}`, 10, yPosition + 20);
+      doc.text(`Hora da Chegada da Ambulância: ${data.horaChegadaAmbulancia}`, 10, yPosition + 24);
+
+      addFooter(doc, data, 1, 2);
+
+      if (data.telegrave) {
+        addTelegravePage(doc, data, logoBase64, imgWidth, imgHeight);
+      }
+
+      const pdfBlob = doc.output('blob');
+      return pdfBlob;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const quadroClinicoField = document.getElementById('quadroClinico');
+      quadroClinicoField.disabled = true;
+
+      const gestanteCheckbox = document.getElementById('gestante');
+      const bcfField = document.getElementById('bcfField');
+      const bcfInput = document.getElementById('bcf');
+      const sexoSelect = document.getElementById('sexo');
+      const telegraveCheckbox = document.getElementById('telegrave');
+      const telegraveEspecialidadeField = document.getElementById('telegraveEspecialidadeField');
+      const telegraveEspecialidadeSelect = document.getElementById('telegraveEspecialidade');
+      const telegraveCampos = document.getElementById('telegraveCampos');
+      const fileInput = document.getElementById('anexos');
+      const fileList = document.getElementById('fileList');
+
+      gestanteCheckbox.addEventListener('change', () => {
+        bcfField.style.display = gestanteCheckbox.checked ? 'block' : 'none';
+        if (!gestanteCheckbox.checked) {
+          bcfInput.value = ''; // Limpa o campo BCF se não for gestante
+          bcfInput.required = false; // Remove required se não for gestante
+        } else {
+          bcfInput.required = true; // Adiciona required se for gestante
+        }
+        quadroClinicoField.disabled = !checkSinaisVitais();
+      });
+
+      sexoSelect.addEventListener('change', (e) => {
+        const gestanteField = document.getElementById('gestanteField');
+        if (e.target.value === 'Feminino') {
+          gestanteField.style.display = 'flex';
+        } else {
+          gestanteCheckbox.checked = false;
+          gestanteField.style.display = 'none';
+          bcfField.style.display = 'none';
+          bcfInput.value = ''; // Limpa o campo BCF se o sexo não for feminino
+          bcfInput.required = false; // Remove required se o sexo não for feminino
+        }
+        quadroClinicoField.disabled = !checkSinaisVitais();
+      });
+
+      document.querySelectorAll('.vital-sign').forEach(field => {
+        field.addEventListener('input', () => {
+          quadroClinicoField.disabled = !checkSinaisVitais();
+          calculateGlasgow();
+        });
+      });
+
+      document.getElementById('dataNascimento').addEventListener('change', (e) => {
+        const today = new Date();
+        const selectedDate = new Date(e.target.value);
+        if (selectedDate > today) {
+          alert('A data de nascimento não pode ser no futuro.');
+          e.target.value = '';
+          return;
+        }
+        const idadeField = document.getElementById('idade');
+        idadeField.value = calculateAge(e.target.value);
+      });
+
+      telegraveCheckbox.addEventListener('change', () => {
+        telegraveEspecialidadeField.style.display = telegraveCheckbox.checked ? 'block' : 'none';
+        if (!telegraveCheckbox.checked) {
+          telegraveEspecialidadeSelect.value = '';
+          telegraveCampos.innerHTML = '';
+        }
+      });
+
+      telegraveEspecialidadeSelect.addEventListener('change', (e) => {
+        const especialidade = e.target.value;
+        telegraveCampos.innerHTML = '';
+        if (especialidade === 'telecardio') {
+          telegraveCampos.innerHTML = `
+            <div class="section-title">TELEGRAVE - Cardio</div>
+            <div class="form-group">
+              <label for="tipoDor">Tipo de Dor:</label>
+              <textarea class="form-control" id="tipoDor" name="tipoDor" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+              <label for="cateterismoPrevio">Cateterismo Prévio:</label>
+              <input type="text" class="form-control" id="cateterismoPrevio" name="cateterismoPrevio" required>
+            </div>
+            <div class="form-group">
+              <label for="dataLaudo">Data e Laudo:</label>
+              <input type="date" class="form-control" id="dataLaudo" name="dataLaudo" required>
+            </div>
+            <div class="form-group">
+              <label for="ecgInicial">ECG inicial:</label>
+              <input type="text" class="form-control" id="ecgInicial" name="ecgInicial" required>
+            </div>
+            <div class="form-group">
+              <label for="ecgSequenciais">ECG sequenciais:</label>
+              <input type="text" class="form-control" id="ecgSequenciais" name="ecgSequenciais">
+            </div>
+            <div class="form-group">
+              <label for="troponinaInicial">Troponina inicial (Resultado e horário de coleta):</label>
+              <input type="text" class="form-control" id="troponinaInicial" name="troponinaInicial" required>
+            </div>
+            <div class="form-group">
+              <label for="troposSequenciais">Tropos sequenciais (Resultado e horário de coleta):</label>
+              <input type="text" class="form-control" id="troposSequenciais" name="troposSequenciais">
+            </div>
+            <div class="form-group">
+              <label for="diagnosticosDiferenciais">Diagnósticos diferenciais possíveis (se houverem):</label>
+              <input type="text" class="form-control" id="diagnosticosDiferenciais" name="diagnosticosDiferenciais">
+            </div>
+            <div class="form-group">
+              <label for="condutaRealizada">Conduta já realizada até o momento do contato:</label>
+              <input type="text" class="form-control" id="condutaRealizada" name="condutaRealizada" required>
+            </div>
+          `;
+        }
+      });
+
+      function calculateGlasgow() {
+        const respostaOcular = parseInt(document.getElementById('respostaOcular').value) || 0;
+        const respostaMotora = parseInt(document.getElementById('respostaMotora').value) || 0;
+        const respostaVerbal = parseInt(document.getElementById('respostaVerbal').value) || 0;
+        const glasgow = respostaOcular + respostaMotora + respostaVerbal;
+        document.getElementById('glasgow').value = glasgow;
+      }
+
+      fileInput.addEventListener('change', (e) => {
+        fileList.innerHTML = '';
+        Array.from(e.target.files).forEach(file => {
+          if (!file.type.match('image.*') && file.type !== 'application/pdf') {
+            alert('Somente arquivos de imagem e PDFs são permitidos.');
+            removeFile(file.name);
+            return;
+          }
+          const listItem = document.createElement('div');
+          listItem.className = 'file-item';
+          listItem.innerHTML = `
+            <span>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
+            <button type="button" class="btn btn-danger btn-sm remove-btn" onclick="removeFile('${file.name}')">Remover</button>
+          `;
+          fileList.appendChild(listItem);
+        });
+      });
+
+      document.getElementById('medicalForm').addEventListener('submit', saveFormData);
+
+      // Set current date and time
+      const currentDate = new Date().toISOString().slice(0, 10);
+      const currentTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+      document.getElementById('data').value = currentDate;
+      document.getElementById('hora').value = currentTime;
+
+      // Add placeholder and auto-formatting for PA
+      const paField = document.getElementById('pa');
+      paField.addEventListener('input', (e) => {
+        const value = e.target.value.replace(/\D/g, '');
+        if (value.length > 3) {
+          e.target.value = value.slice(0, 3) + '/' + value.slice(3, 5);
+        } else {
+          e.target.value = value;
+        }
+      });
+
+      calculateGlasgow(); // Calculate Glasgow on page load
+    });
+
+    function removeFile(fileName) {
+      const fileInput = document.getElementById('anexos');
+      const dataTransfer = new DataTransfer();
+      Array.from(fileInput.files).forEach(file => {
+        if (file.name !== fileName) {
+          dataTransfer.items.add(file);
+        }
+      });
+      fileInput.files = dataTransfer.files;
+      updateFileList();
+    }
+
+    function updateFileList() {
+      const fileInput = document.getElementById('anexos');
+      const fileList = document.getElementById('fileList');
+      fileList.innerHTML = '';
+      Array.from(fileInput.files).forEach(file => {
+        const listItem = document.createElement('div');
+        listItem.className = 'file-item';
+        listItem.innerHTML = `
+          <span>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
+          <button type="button" class="btn btn-danger btn-sm remove-btn" onclick="removeFile('${file.name}')">Remover</button>
+        `;
+        fileList.appendChild(listItem);
+      });
+    }
+
+    document.getElementById('anexos').addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      const validFiles = files.filter(file => file.type.match('image.*') || file.type === 'application/pdf');
+      if (files.length !== validFiles.length) {
+        alert('Somente arquivos de imagem e PDFs são permitidos.');
+      }
+      const dataTransfer = new DataTransfer();
+      validFiles.forEach(file => dataTransfer.items.add(file));
+      e.target.files = dataTransfer.files;
+      updateFileList();
+    });
+  </script>
+  <style>
+    .container {
+      max-width: 800px;
+      margin-top: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .custom-file-input~.custom-file-label::after {
+      content: "Selecionar";
+    }
+
+    .section-title {
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #007bff;
+      display: flex;
+      align-items: center;
+    }
+
+    #bcfField {
+      display: none;
+    }
+
+    .checkbox-inline {
+      display: flex;
+      align-items: center;
+      margin-left: 20px;
+    }
+
+    #telegraveEspecialidadeField {
+      display: none;
+    }
+
+    #fileList {
+      margin-top: 10px;
+    }
+
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .btn {
+      margin-top: 10px;
+    }
+
+    .back-button {
+      margin-right: 10px;
+    }
+
+    .btn-container {
+      display: flex;
+      justify-content: flex-start;
+      gap: 10px;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1 class="text-center">Formulário Médico</h1>
+    <form id="medicalForm">
+      <!-- Dados do Paciente -->
+      <div class="section-title">
+        <button type="button" class="btn btn-secondary back-button" onclick="window.location.href='../index.html'">
+          <span class="material-icons">arrow_back</span>
+        </button>
+        Dados do Paciente
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="nome">Nome:</label>
+          <input type="text" class="form-control" id="nome" name="nome" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="dataNascimento">Data de Nascimento:</label>
+          <input type="date" class="form-control" id="dataNascimento" name="dataNascimento" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="endereco">Endereço:</label>
+          <input type="text" class="form-control" id="endereco" name="endereco" required>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="idade">Idade:</label>
+          <input type="number" class="form-control" id="idade" name="idade" required readonly>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="sexo">Sexo:</label>
+          <select class="form-control" id="sexo" name="sexo" required>
+            <option value="Masculino">Masculino</option>
+            <option value="Feminino">Feminino</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="nomeMae">Nome da Mãe:</label>
+          <input type="text" class="form-control" id="nomeMae" name="nomeMae" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="numeroConvenio">Número do Convênio:</label>
+          <input type="text" class="form-control" id="numeroConvenio" name="numeroConvenio" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="telefone">Telefone:</label>
+          <input type="tel" class="form-control" id="telefone" name="telefone" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="cid">CID:</label>
+          <input type="text" class="form-control" id="cid" name="cid" required>
+        </div>
+      </div>
+
+      <!-- Sinais Vitais -->
+      <div class="section-title">Sinais Vitais</div>
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label for="respostaOcular">Resposta Ocular:</label>
+          <select class="form-control vital-sign" id="respostaOcular" name="respostaOcular" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+        <div class="form-group col-md-4">
+          <label for="respostaMotora">Resposta Motora:</label>
+          <select class="form-control vital-sign" id="respostaMotora" name="respostaMotora" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+          </select>
+        </div>
+        <div class="form-group col-md-4">
+          <label for="respostaVerbal">Resposta Verbal:</label>
+          <select class="form-control vital-sign" id="respostaVerbal" name="respostaVerbal" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-2">
+          <label for="fc">FC (bpm):</label>
+          <input type="number" class="form-control vital-sign" id="fc" name="fc" required min="30" max="200">
+        </div>
+        <div class="form-group col-md-2">
+          <label for="pa">PA (mmHg):</label>
+          <input type="text" class="form-control vital-sign" id="pa" name="pa" required placeholder="XXX/YY">
+        </div>
+        <div class="form-group col-md-2">
+          <label for="fr">FR (rpm):</label>
+          <input type="number" class="form-control vital-sign" id="fr" name="fr" required>
+        </div>
+        <div class="form-group col-md-2">
+          <label for="temperatura">T (°C):</label>
+          <input type="number" class="form-control vital-sign" id="temperatura" name="temperatura" step="0.1" required min="30" max="45">
+        </div>
+        <div class="form-group col-md-2">
+          <label for="saturacao">SAT (%):</label>
+          <input type="number" class="form-control vital-sign" id="saturacao" name="saturacao" required min="50" max="100">
+        </div>
+        <div class="form-group col-md-2">
+          <label for="glasgow">GLASGOW:</label>
+          <input type="number" class="form-control vital-sign" id="glasgow" name="glasgow" required readonly>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-2 checkbox-inline" id="gestanteField" style="display: none;">
+          <input type="checkbox" class="form-check-input" id="gestante" name="gestante">
+          <label class="form-check-label" for="gestante" style="margin-left: 10px;">Gestante</label>
+        </div>
+        <div class="form-group col-md-2" id="bcfField">
+          <label for="bcf">BCF:</label>
+          <input type="number" class="form-control vital-sign" id="bcf" name="bcf" min="100" max="180">
+        </div>
+      </div>
+
+      <!-- Telegrave -->
+      <div class="section-title">Telegrave</div>
+      <div class="form-group checkbox-inline">
+        <input type="checkbox" class="form-check-input" id="telegrave" name="telegrave">
+        <label class="form-check-label" for="telegrave" style="margin-left: 10px;">Telegrave</label>
+      </div>
+      <div class="form-group" id="telegraveEspecialidadeField" style="display: none;">
+        <label for="telegraveEspecialidade">Especialidade:</label>
+        <select class="form-control" id="telegraveEspecialidade" name="telegraveEspecialidade">
+          <option value="">Selecione</option>
+          <option value="telecardio">Tele Cardio</option>
+          <option value="teleneuro">Tele Neuro</option>
+          <option value="telepsiquiatria">Tele Psiquiatria</option>
+        </select>
+      </div>
+      <div id="telegraveCampos"></div>
+
+      <!-- Quadro Clínico -->
+      <div class="section-title">Quadro Clínico</div>
+      <div class="form-group">
+        <textarea class="form-control" id="quadroClinico" name="quadroClinico" rows="10" required></textarea>
+      </div>
+      <div class="form-group">
+        <label for="motivoTransferencia">Motivo da Transferência:</label>
+        <textarea class="form-control" id="motivoTransferencia" name="motivoTransferencia" rows="3" required></textarea>
+      </div>
+
+      <!-- Dados do Médico -->
+      <div class="section-title">Dados do Médico</div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="medicoRegulador">Médico Regulador:</label>
+          <input type="text" class="form-control" id="medicoRegulador" name="medicoRegulador" required>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="data">Data:</label>
+          <input type="date" class="form-control" id="data" name="data" required>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="hora">Hora:</label>
+          <input type="time" class="form-control" id="hora" name="hora" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="medicoReguladorCRM">CRM Médico Regulador:</label>
+          <input type="text" class="form-control" id="medicoReguladorCRM" name="medicoReguladorCRM" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="horaLiberacaoVaga">Hora da Liberação da Vaga:</label>
+          <input type="time" class="form-control" id="horaLiberacaoVaga" name="horaLiberacaoVaga" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="destino">Destino:</label>
+          <input type="text" class="form-control" id="destino" name="destino" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="medicoDestino">Médico do Destino:</label>
+          <input type="text" class="form-control" id="medicoDestino" name="medicoDestino" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="crmDestino">CRM do Médico do Destino:</label>
+          <input type="text" class="form-control" id="crmDestino" name="crmDestino" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="horaChegadaAmbulancia">Hora da Chegada da Ambulância:</label>
+          <input type="time" class="form-control" id="horaChegadaAmbulancia" name="horaChegadaAmbulancia" required>
+        </div>
+      </div>
+
+      <!-- Anexos -->
+      <div class="section-title">Anexar Exames e Documentos</div>
+      <div class="form-group">
+        <div class="custom-file">
+          <input type="file" class="custom-file-input" id="anexos" name="anexos" multiple accept="image/*,application/pdf">
+          <label class="custom-file-label" for="anexos">Escolher arquivos</label>
+        </div>
+        <div id="fileList"></div>
+      </div>
+
+      <div class="btn-container">
+        <button type="submit" class="btn btn-primary">Enviar</button>
+        <button type="button" class="btn btn-secondary" onclick="window.location.href='../index.html'">Voltar</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    function removeFile(fileName) {
+      const fileInput = document.getElementById('anexos');
+      const dataTransfer = new DataTransfer();
+      Array.from(fileInput.files).forEach(file => {
+        if (file.name !== fileName) {
+          dataTransfer.items.add(file);
+        }
+      });
+      fileInput.files = dataTransfer.files;
+      updateFileList();
+    }
+
+    function updateFileList() {
+      const fileInput = document.getElementById('anexos');
+      const fileList = document.getElementById('fileList');
+      fileList.innerHTML = '';
+      Array.from(fileInput.files).forEach(file => {
+        const listItem = document.createElement('div');
+        listItem.className = 'file-item';
+        listItem.innerHTML = `
+          <span>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
+          <button type="button" class="btn btn-danger btn-sm remove-btn" onclick="removeFile('${file.name}')">Remover</button>
+        `;
+        fileList.appendChild(listItem);
+      });
+    }
+
+    document.getElementById('anexos').addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      const validFiles = files.filter(file => file.type.match('image.*') || file.type === 'application/pdf');
+      if (files.length !== validFiles.length) {
+        alert('Somente arquivos de imagem e PDFs são permitidos.');
+      }
+      const dataTransfer = new DataTransfer();
+      validFiles.forEach(file => dataTransfer.items.add(file));
+      e.target.files = dataTransfer.files;
+      updateFileList();
+    });
+  </script>
+</body>
+
+</html>

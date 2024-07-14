@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualização de Dados Médicos</title>
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .container {
+      max-width: 800px;
+      margin-top: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .card-title {
+      margin-bottom: 10px;
+    }
+
+    #loadingIndicator {
+      display: none;
+      text-align: center;
+    }
+
+    .card-header {
+      background-color: #007bff;
+      color: white;
+    }
+
+    .card-body p {
+      margin-bottom: 5px;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: bold;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      color: #007bff;
+    }
+
+    .divider {
+      height: 2px;
+      background-color: #007bff;
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      margin-right: -15px;
+      margin-left: -15px;
+    }
+
+    .col-md-6 {
+      flex: 0 0 50%;
+      max-width: 50%;
+      padding-right: 15px;
+      padding-left: 15px;
+    }
+
+    .col-md-4 {
+      flex: 0 0 33.333333%;
+      max-width: 33.333333%;
+      padding-right: 15px;
+      padding-left: 15px;
+    }
+
+    .col-md-3 {
+      flex: 0 0 25%;
+      max-width: 25%;
+      padding-right: 15px;
+      padding-left: 15px;
+    }
+
+    .col-md-12 {
+      flex: 0 0 100%;
+      max-width: 100%;
+      padding-right: 15px;
+      padding-left: 15px;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 10px;
+      }
+
+      .col-md-6,
+      .col-md-4,
+      .col-md-3 {
+        flex: 0 0 100%;
+        max-width: 100%;
+      }
+    }
+  </style>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+    import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+    import { getStorage } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA6ABD6HXyiwbXipENcE7UCeBkTpR9Nk8U",
+      authDomain: "cordestore.firebaseapp.com",
+      projectId: "cordestore",
+      storageBucket: "cordestore.appspot.com",
+      messagingSenderId: "752359738934",
+      appId: "1:752359738934:web:3a6f0dd52cb0fa91759297",
+      measurementId: "G-JP22TE5B2B"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    function formatDateBR(dateString) {
+      const [year, month, day] = dateString.split('-');
+      return `${day}/${month}/${year}`;
+    }
+
+    let debounceTimeout;
+    const searchButton = document.getElementById('searchButton');
+    const searchField = document.getElementById('searchField');
+    const patientDataDiv = document.getElementById('patientData');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+
+    searchButton.addEventListener('click', async () => {
+      clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(() => performSearch(), 300);
+    });
+
+    async function performSearch() {
+      const searchValue = searchField.value.trim();
+      patientDataDiv.innerHTML = '';
+      loadingIndicator.style.display = 'block';
+
+      if (!searchValue) {
+        loadingIndicator.style.display = 'none';
+        patientDataDiv.innerHTML = '<p class="text-danger">Por favor, insira um nome ou número do convênio para buscar.</p>';
+        return;
+      }
+
+      try {
+        const nameQuery = query(collection(db, 'medicalForms'), where('nome', '>=', searchValue), where('nome', '<=', searchValue + '\uf8ff'));
+        const nameSnapshot = await getDocs(nameQuery);
+
+        const convenioQuery = query(collection(db, 'medicalForms'), where('numeroConvenio', '==', searchValue));
+        const convenioSnapshot = await getDocs(convenioQuery);
+
+        if (nameSnapshot.empty && convenioSnapshot.empty) {
+          loadingIndicator.style.display = 'none';
+          patientDataDiv.innerHTML = '<p class="text-warning">Nenhum resultado encontrado.</p>';
+          return;
+        }
+
+        const displayData = (snapshot) => {
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            const dataRegistro = new Date(data.dataRegistro.seconds * 1000).toLocaleString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            const sinaisVitaisHTML = `
+              <div class="section-title">Sinais Vitais</div>
+              <div class="divider"></div>
+              <div class="row">
+                <div class="col-md-3"><p><strong>PA (mmHg):</strong> ${data.sinaisVitais.pa}</p></div>
+                <div class="col-md-3"><p><strong>FC (bpm):</strong> ${data.sinaisVitais.fc}</p></div>
+                <div class="col-md-3"><p><strong>Saturação (%):</strong> ${data.sinaisVitais.saturacao}</p></div>
+                <div class="col-md-3"><p><strong>FR (rpm):</strong> ${data.sinaisVitais.fr}</p></div>
+                <div class="col-md-3"><p><strong>Temperatura (°C):</strong> ${data.sinaisVitais.temperatura}</p></div>
+                <div class="col-md-3"><p><strong>GLASGOW:</strong> ${data.sinaisVitais.glasgow}</p></div>
+                <div class="col-md-3"><p><strong>Resposta Ocular:</strong> ${data.sinaisVitais.respostaOcular}</p></div>
+                <div class="col-md-3"><p><strong>Resposta Motora:</strong> ${data.sinaisVitais.respostaMotora}</p></div>
+                <div class="col-md-3"><p><strong>Resposta Verbal:</strong> ${data.sinaisVitais.respostaVerbal}</p></div>
+                ${data.sexo === 'Feminino' && data.gestante ? `<div class="col-md-3"><p><strong>BCF:</strong> ${data.sinaisVitais.bcf}</p></div>` : ''}
+              </div>
+            `;
+
+            const telegraveHTML = data.telegrave ? `
+              <div class="section-title">Telegrave - ${data.telegraveEspecialidade.replace('tele', '').toUpperCase()}</div>
+              <div class="divider"></div>
+              <div class="row">
+                ${data.telegraveEspecialidade === 'telecardio' ? `
+                  <div class="col-md-6"><p><strong>Tipo de Dor:</strong> ${data.telegraveDados.tipoDor}</p></div>
+                  <div class="col-md-6"><p><strong>Cateterismo Prévio:</strong> ${data.telegraveDados.cateterismoPrevio}</p></div>
+                  <div class="col-md-6"><p><strong>Data e Laudo:</strong> ${data.telegraveDados.dataLaudo}</p></div>
+                  <div class="col-md-6"><p><strong>ECG inicial:</strong> ${data.telegraveDados.ecgInicial}</p></div>
+                  <div class="col-md-6"><p><strong>ECG sequenciais:</strong> ${data.telegraveDados.ecgSequenciais}</p></div>
+                  <div class="col-md-6"><p><strong>Troponina inicial:</strong> ${data.telegraveDados.troponinaInicial}</p></div>
+                  <div class="col-md-6"><p><strong>Tropos sequenciais:</strong> ${data.telegraveDados.troposSequenciais}</p></div>
+                  <div class="col-md-6"><p><strong>Diagnósticos diferenciais possíveis:</strong> ${data.telegraveDados.diagnosticosDiferenciais}</p></div>
+                  <div class="col-md-6"><p><strong>Conduta já realizada até o momento do contato:</strong> ${data.telegraveDados.condutaRealizada}</p></div>
+                ` : ''}
+                ${data.telegraveEspecialidade === 'teleneuro' ? `
+                  <div class="col-md-6"><p><strong>Sinais Focais:</strong> ${data.telegraveDados.sinaisFocais}</p></div>
+                  <div class="col-md-6"><p><strong>AVC Prévio:</strong> ${data.telegraveDados.avcPrevio}</p></div>
+                  <div class="col-md-6"><p><strong>Data de Início dos Sintomas:</strong> ${formatDateBR(data.telegraveDados.dataInicioSintomas)}</p></div>
+                  <div class="col-md-6"><p><strong>Escala NIH:</strong> ${data.telegraveDados.escalaNIH}</p></div>
+                  <div class="col-md-6"><p><strong>TC de Crânio:</strong> <a href="${data.telegraveDados.tcCranio}" target="_blank">Ver Imagem</a></p></div>
+                  <div class="col-md-6"><p><strong>Diagnósticos Diferenciais:</strong> ${data.telegraveDados.diagnosticosDiferenciais}</p></div>
+                  <div class="col-md-6"><p><strong>Conduta Realizada:</strong> ${data.telegraveDados.condutaRealizada}</p></div>
+                ` : ''}
+                ${data.telegraveEspecialidade === 'telepsiquiatria' ? `
+                  <div class="col-md-6"><p><strong>História Psiquiátrica:</strong> ${data.telegraveDados.historiaPsiquiatrica}</p></div>
+                  <div class="col-md-6"><p><strong>Medicação Atual:</strong> ${data.telegraveDados.medicacaoAtual}</p></div>
+                  <div class="col-md-6"><p><strong>Risco de Suicídio:</strong> ${data.telegraveDados.riscoSuicidio}</p></div>
+                  <div class="col-md-6"><p><strong>Internações Prévias:</strong> ${data.telegraveDados.internacoesPrevias}</p></div>
+                  <div class="col-md-6"><p><strong>Diagnósticos Diferenciais:</strong> ${data.telegraveDados.diagnosticosDiferenciais}</p></div>
+                  <div class="col-md-6"><p><strong>Conduta Realizada:</strong> ${data.telegraveDados.condutaRealizada}</p></div>
+                ` : ''}
+              </div>
+            ` : '';
+
+            patientDataDiv.innerHTML += `
+              <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <h3 class="card-title mb-0">${data.nome}</h3>
+                  <span>${dataRegistro}</span>
+                </div>
+                <div class="card-body">
+                  <div class="section-title">Dados do Paciente</div>
+                  <div class="divider"></div>
+                  <div class="row">
+                    <div class="col-md-12"><p><strong>Nome:</strong> ${data.nome}</p></div>
+                    <div class="col-md-12"><p><strong>Endereço:</strong> ${data.endereco}</p></div>
+                    <div class="col-md-6"><p><strong>Data de Nascimento:</strong> ${formatDateBR(data.dataNascimento)}</p></div>
+                    <div class="col-md-3"><p><strong>Idade:</strong> ${data.idade}</p></div>
+                    <div class="col-md-3"><p><strong>Sexo:</strong> ${data.sexo}</p></div>
+                    <div class="col-md-6"><p><strong>Nome da Mãe:</strong> ${data.nomeMae}</p></div>
+                    <div class="col-md-12"><p><strong>Número do Convênio:</strong> ${data.numeroConvenio}</p></div>
+                    <div class="col-md-6"><p><strong>Telefone:</strong> ${data.telefone}</p></div>
+                  </div>
+                  <div class="section-title">${data.sexo === 'Feminino' && data.gestante ? 'Quadro Clínico - Gestante' : 'Quadro Clínico'}</div>
+                  <div class="divider"></div>
+                  <p>${data.quadroClinico}</p>
+                  <div class="section-title">Motivo da Transferência</div>
+                  <div class="divider"></div>
+                  <p>${data.motivoTransferencia}</p>
+                  <div class="section-title">Dados da Transferência</div>
+                  <div class="divider"></div>
+                  <p><strong>Data:</strong> ${formatDateBR(data.data)} <strong>Hora:</strong> ${data.hora}</p>
+                  <p><strong>Médico Regulador:</strong> ${data.medicoRegulador} - <strong>CRM:</strong> ${data.medicoReguladorCRM}</p>
+                  <p><strong>Médico do Destino:</strong> ${data.medicoDestino} - <strong>CRM:</strong> ${data.crmDestino}</p>
+                  <p><strong>Destino:</strong> ${data.destino}</p>
+                  <p><strong>Hora da Liberação da Vaga:</strong> ${data.horaLiberacaoVaga}</p>
+                  <p><strong>Hora da Chegada da Ambulância:</strong> ${data.horaChegadaAmbulancia}</p>
+                  ${sinaisVitaisHTML}
+                  ${telegraveHTML}
+                  <div class="section-title">Anexos</div>
+                  <div class="divider"></div>
+                  ${data.anexos.map(url => `<a href="${url}" target="_blank">Visualizar Anexo</a><br>`).join('')}
+                  <div class="section-title">PDF Gerado</div>
+                  <div class="divider"></div>
+                  <a href="${data.pdfUrl}" target="_blank">Visualizar PDF</a>
+                </div>
+              </div>
+            `;
+          });
+        };
+
+        loadingIndicator.style.display = 'none';
+        displayData(nameSnapshot);
+        displayData(convenioSnapshot);
+      } catch (error) {
+        console.error('Erro ao buscar dados:', error);
+        loadingIndicator.style.display = 'none';
+        patientDataDiv.innerHTML = '<p class="text-danger">Erro ao buscar dados. Por favor, tente novamente mais tarde.</p>';
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <div class="container">
+    <h1 class="text-center">Visualização de Dados Médicos</h1>
+    <div class="form-group">
+      <input type="text" id="searchField" class="form-control" placeholder="Nome ou número do convênio">
+    </div>
+    <div class="form-group text-center">
+      <button class="btn btn-primary" id="searchButton">Buscar</button>
+      <button class="btn btn-secondary" onclick="window.location.href='../index.html'">Voltar</button>
+    </div>
+    <div id="loadingIndicator">
+      <div class="spinner-border text-primary" role="status">
+        <span class="sr-only">Carregando...</span>
+      </div>
+    </div>
+    <div id="patientData"></div>
+  </div>
+</body>
+
+</html>

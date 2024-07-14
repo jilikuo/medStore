@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuração do Firestore</title>
+  <script type="module">
+    // Importações do Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+
+    // Configuração do Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyA6ABD6HXyiwbXipENcE7UCeBkTpR9Nk8U",
+      authDomain: "cordestore.firebaseapp.com",
+      projectId: "cordestore",
+      storageBucket: "cordestore.appspot.com",
+      messagingSenderId: "752359738934",
+      appId: "1:752359738934:web:3a6f0dd52cb0fa91759297",
+      measurementId: "G-JP22TE5B2B"
+    };
+
+    // Inicializa o Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Função para criar os campos no Firestore
+    async function createFirestoreFields() {
+      const data = {
+        nome: "",
+        endereco: "",
+        dataNascimento: "",
+        idade: 0,
+        sexo: "",
+        nomeMae: "",
+        numeroConvenio: "",
+        telefone: "",
+        cid: "",
+        quadroClinico: "",
+        motivoTransferencia: "",
+        assinaturaMedico: "",
+        data: "",
+        hora: "",
+        medicoRegulador: "",
+        horaLiberacaoVaga: "",
+        destino: "",
+        medicoDestino: "",
+        crmDestino: "",
+        horaChegadaAmbulancia: "",
+        sinaisVitais: {
+          pressao: "",
+          frequenciaCardiaca: "",
+          frequenciaRespiratoria: "",
+          saturacao: "",
+          drogasVasoativas: "",
+          batimentoFetal: ""
+        },
+        anexos: []
+      };
+
+      try {
+        await addDoc(collection(db, 'medicalForms'), data);
+        console.log('Campos criados com sucesso no Firestore!');
+      } catch (error) {
+        console.error('Erro ao criar os campos no Firestore: ', error);
+      }
+    }
+
+    // Executar a função ao carregar a página
+    window.onload = createFirestoreFields;
+  </script>
+</head>
+<body>
+  <h1>Configuração do Firestore</h1>
+  <p>Os campos do Firestore estão sendo configurados...</p>
+</body>
+</html>
