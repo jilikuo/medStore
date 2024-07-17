@@ -1,4 +1,4 @@
-using medStore;
+using MedStore;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
