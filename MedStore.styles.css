@@ -1,21 +1,93 @@
 /* /Layout/MainLayout.razor.rz.scp.css */
+main[b-ivynh7aq3s] {
+    flex: 1;
+}
+
+#loadingIndicator[b-ivynh7aq3s] {
+    display: none;
+    text-align: center;
+}
+
+.form-group[b-ivynh7aq3s] {
+    margin-bottom: 15px;
+}
+
+.card-title[b-ivynh7aq3s] {
+    margin-bottom: 10px;
+}
+
+.card-header[b-ivynh7aq3s] {
+    background-color: #007bff;
+    color: white;
+}
+
+.card-body p[b-ivynh7aq3s] {
+    margin-bottom: 5px;
+}
+
+.col-md-3[b-ivynh7aq3s] {
+    flex: 0 0 25%;
+    max-width: 25%;
+    padding-right: 15px;
+    padding-left: 15px;
+}
+
+.col-md-4[b-ivynh7aq3s] {
+    flex: 0 0 33.333333%;
+    max-width: 33.333333%;
+    padding-right: 15px;
+    padding-left: 15px;
+}
+
+.col-md-6[b-ivynh7aq3s] {
+    flex: 0 0 50%;
+    max-width: 50%;
+    padding-right: 15px;
+    padding-left: 15px;
+}
+
+.col-md-12[b-ivynh7aq3s] {
+    flex: 0 0 100%;
+    max-width: 100%;
+    padding-right: 15px;
+    padding-left: 15px;
+}
+
+.container[b-ivynh7aq3s] {
+    max-width: 800px;
+    margin-top: 50px;
+}
+
+.divider[b-ivynh7aq3s] {
+    height: 2px;
+    background-color: #007bff;
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+.row[b-ivynh7aq3s] {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -15px;
+    margin-left: -15px;
+}
+
 .page[b-ivynh7aq3s] {
     position: relative;
     display: flex;
     flex-direction: column;
 }
 
-main[b-ivynh7aq3s] {
-    flex: 1;
+.section-title[b-ivynh7aq3s] {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: #007bff;
 }
 
 .sidebar[b-ivynh7aq3s] {
     background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
-}
-
-.container[b-ivynh7aq3s] {
-    max-width: 600px;
-    margin-top: 50px;
 }
 
 .top-row[b-ivynh7aq3s] {
@@ -42,13 +114,24 @@ main[b-ivynh7aq3s] {
         text-overflow: ellipsis;
     }
 
-@media (max-width: 640.98px) {
+@media (max-width: 768px) {
     .top-row[b-ivynh7aq3s] {
         justify-content: space-between;
     }
 
     .top-row[b-ivynh7aq3s]  a, .top-row[b-ivynh7aq3s]  .btn-link {
         margin-left: 0;
+    }
+
+    .container[b-ivynh7aq3s] {
+        padding: 10px;
+    }
+
+    .col-md-6[b-ivynh7aq3s],
+    .col-md-4[b-ivynh7aq3s],
+    .col-md-3[b-ivynh7aq3s] {
+        flex: 0 0 100%;
+        max-width: 100%;
     }
 }
 
