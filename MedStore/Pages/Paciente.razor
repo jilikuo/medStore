@@ -1,3 +1,234 @@
 @page "/paciente"
 
-<h1> vc foi dibrado </h1>
+<PageTitle>Formulário Médico</PageTitle>
+
+  <div class="container">
+    <h1 class="text-center">Formulário Médico</h1>
+    <form id="medicalForm">
+  <!-- Dados do Paciente -->
+      <div class="section-title">
+        <button type="button" class="btn btn-secondary back-button" onclick="window.location.href='../index.html'">
+          <span class="material-icons">arrow_back</span>
+        </button>
+        Dados do Paciente
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="nome">Nome:</label>
+          <input type="text" class="form-control" id="nome" name="nome" required>
+        </div>
+        <div class="form-group col-md6">
+          <label for="dataNascimento">Data de Nascimento:</label>
+          <input type="date" class="form-control" id="dataNascimento" name="dataNascimento" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="endereco">Endereço:</label>
+          <input type="text" class="form-control" id="endereco" name="endereco" required>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="idade">Idade:</label>
+          <input type="number" class="form-control" id="idade" name="idade" required readonly>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="sexo">Sexo:</label>
+          <select class="form-control" id="sexo" name="sexo" required>
+            <option value="Masculino">Masculino</option>
+            <option value="Feminino">Feminino</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="nomeMae">Nome da Mãe:</label>
+          <input type="text" class="form-control" id="nomeMae" name="nomeMae" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="numeroConvenio">Número do Convênio:</label>
+          <input type="text" class="form-control" id="numeroConvenio" name="numeroConvenio" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="telefone">Telefone:</label>
+          <input type="tel" class="form-control" id="telefone" name="telefone" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="cid">CID:</label>
+          <input type="text" class="form-control" id="cid" name="cid" required>
+        </div>
+      </div>
+
+      <!-- Sinais Vitais -->
+      <div class="section-title">Sinais Vitais</div>
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label for="respostaOcular">Resposta Ocular:</label>
+          <select class="form-control vital-sign" id="respostaOcular" name="respostaOcular" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+        <div class="form-group col-md-4">
+          <label for="respostaMotora">Resposta Motora:</label>
+          <select class="form-control vital-sign" id="respostaMotora" name="respostaMotora" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+          </select>
+        </div>
+        <div class="form-group col-md-4">
+          <label for="respostaVerbal">Resposta Verbal:</label>
+          <select class="form-control vital-sign" id="respostaVerbal" name="respostaVerbal" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-2">
+          <label for="fc">FC (bpm):</label>
+          <input type="number" class="form-control vital-sign" id="fc" name="fc" required placeholder="30-200" min="30"
+            max="200">
+        </div>
+        <div class="form-group col-md-2">
+          <label for="pa">PA (mmHg):</label>
+          <input type="text" class="form-control vital-sign" id="pa" name="pa" required placeholder="XXX/YY">
+        </div>
+        <div class="form-group col-md-2">
+          <label for="fr">FR (rpm):</label>
+          <input type="number" class="form-control vital-sign" id="fr" name="fr" required placeholder="12-25" min="12"
+            max="25">
+        </div>
+        <div class="form-group col-md-2">
+          <label for="temperatura">T (°C):</label>
+          <input type="number" class="form-control vital-sign" id="temperatura" name="temperatura" step="0.1" required
+            placeholder="30-45" min="30" max="45">
+        </div>
+        <div class="form-group col-md-2">
+          <label for="saturacao">SAT (%):</label>
+          <input type="number" class="form-control vital-sign" id="saturacao" name="saturacao" required
+            placeholder="50-100" min="50" max="100">
+        </div>
+        <div class="form-group col-md-2">
+          <label for="glasgow">GLASGOW:</label>
+          <input type="number" class="form-control vital-sign" id="glasgow" name="glasgow" required readonly>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-2 checkbox-inline" id="gestanteField" style="display: none;">
+          <input type="checkbox" class="form-check-input" id="gestante" name="gestante">
+          <label class="form-check-label" for="gestante" style="margin-left: 10px;">Gestante</label>
+        </div>
+        <div class="form-group col-md-2" id="bcfField">
+          <label for="bcf">BCF:</label>
+          <input type="number" class="form-control vital-sign" id="bcf" name="bcf" placeholder="100-180" min="100"
+            max="180">
+        </div>
+      </div>
+
+      <!-- Telegrave -->
+      <div class="section-title">Telegrave</div>
+      <div class="form-group checkbox-inline">
+        <input type="checkbox" class="form-check-input" id="telegrave" name="telegrave">
+        <label class="form-check-label" for="telegrave" style="margin-left: 10px;">Telegrave</label>
+      </div>
+      <div class="form-group" id="telegraveEspecialidadeField" style="display: none;">
+        <label for="telegraveEspecialidade">Especialidade:</label>
+        <select class="form-control" id="telegraveEspecialidade" name="telegraveEspecialidade">
+          <option value="">Selecione</option>
+          <option value="telecardio">Tele Cardio</option>
+          <option value="teleneuro">Tele Neuro</option>
+          <option value="telepsiquiatria">Tele Psiquiatria</option>
+        </select>
+      </div>
+      <div id="telegraveCampos"></div>
+
+      <!-- Quadro Clínico -->
+      <div class="section-title">Quadro Clínico</div>
+      <div class="form-group">
+        <textarea class="form-control" id="quadroClinico" name="quadroClinico" rows="10" required></textarea>
+      </div>
+      <div class="form-group">
+        <label for="motivoTransferencia">Motivo da Transferência:</label>
+        <textarea class="form-control" id="motivoTransferencia" name="motivoTransferencia" rows="3" required></textarea>
+      </div>
+
+      <!-- Dados do Médico -->
+      <div class="section-title">Dados do Médico</div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="medicoRegulador">Médico Regulador:</label>
+          <input type="text" class="form-control" id="medicoRegulador" name="medicoRegulador" required>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="data">Data:</label>
+          <input type="date" class="form-control" id="data" name="data" required>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="hora">Hora:</label>
+          <input type="time" class="form-control" id="hora" name="hora" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="medicoReguladorCRM">CRM Médico Regulador:</label>
+          <input type="text" class="form-control" id="medicoReguladorCRM" name="medicoReguladorCRM" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="horaLiberacaoVaga">Hora da Liberação da Vaga:</label>
+          <input type="time" class="form-control" id="horaLiberacaoVaga" name="horaLiberacaoVaga" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="destino">Destino:</label>
+          <input type="text" class="form-control" id="destino" name="destino" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="medicoDestino">Médico do Destino:</label>
+          <input type="text" class="form-control" id="medicoDestino" name="medicoDestino" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="crmDestino">CRM do Médico do Destino:</label>
+          <input type="text" class="form-control" id="crmDestino" name="crmDestino" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="horaChegadaAmbulancia">Hora da Chegada da Ambulância:</label>
+          <input type="time" class="form-control" id="horaChegadaAmbulancia" name="horaChegadaAmbulancia" required>
+        </div>
+      </div>
+
+      <!-- Anexos -->
+      <div class="section-title">Anexar Exames e Documentos</div>
+      <div class="form-group">
+        <div class="custom-file">
+          <input type="file" class="custom-file-input" id="anexos" name="anexos" multiple
+            accept="image/*,application/pdf">
+          <label class="custom-file-label" for="anexos">Escolher arquivos</label>
+        </div>
+        <div id="fileList"></div>
+      </div>
+
+      <div class="btn-container">
+        <button type="submit" class="btn btn-primary">Enviar</button>
+        <button type="button" class="btn btn-secondary" onclick="window.location.href='../index.html'">Voltar</button>
+      </div>
+    </form>
+  </div>
+
+@code {
+
+
+} 
